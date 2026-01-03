@@ -1,0 +1,7 @@
+{
+  "name": "ProcureFlow - Simplified PMS",
+  "description": "A simplified Procurement Management System with document tracking, status workflows, and admin-based access control, designed for no-code style efficiency.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
