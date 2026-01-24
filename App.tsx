@@ -18,7 +18,8 @@ import {
   Download,
   Upload,
   Tags,
-  LogOut
+  LogOut,
+  Map as MapIcon
 } from 'lucide-react';
 import { Procurement, ViewType, ProcurementStatus, User } from './types';
 import { storageService } from './services/storageService';
@@ -27,6 +28,7 @@ import { MANDATORY_DOCS } from './constants';
 import Dashboard from './components/Dashboard';
 import ProcurementTable from './components/ProcurementTable';
 import ProcurementForm from './components/ProcurementForm';
+import WorkflowMap from './components/WorkflowMap';
 import Login from './components/Login';
 
 const AUTH_KEY = 'procureflow_auth';
@@ -84,6 +86,8 @@ const App: React.FC = () => {
         const hasAllDocs = MANDATORY_DOCS.every(doc => item.documents[doc]?.checked === true);
         return item.status === ProcurementStatus.Delivery && hasAllDocs;
       });
+    } else if (activeView === 'by-admin' && currentUser) {
+      result = result.filter(item => item.createdBy === currentUser.username || item.createdByUsername === currentUser.username);
     }
 
     // Search
@@ -98,7 +102,7 @@ const App: React.FC = () => {
     }
 
     return result;
-  }, [data, activeView, searchQuery]);
+  }, [data, activeView, searchQuery, currentUser]);
 
   const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen);
 
@@ -150,7 +154,7 @@ const App: React.FC = () => {
 
     try {
       const imported = await excelService.importFromExcel(file);
-      if (confirm(`Detected ${imported.length} records. Merge into existing data? (Imported items will be assigned to your account)`)) {
+      if (confirm(`Detected ${imported.length} records. Merge into existing data? (Imported items will be assigned to your account and automatically routed to CMO Approval)`)) {
         const existingRecordIds = new Set(data.map(i => i.recordId));
         
         // Assign imported records to current user
@@ -168,7 +172,7 @@ const App: React.FC = () => {
 
         const updatedData = [...data, ...newItems];
         handleUpdateData(updatedData);
-        alert(`Successfully imported ${newItems.length} records to your account list.`);
+        alert(`Successfully imported ${newItems.length} records to your account list. Items are now at CMO Approval station.`);
       }
     } catch (err) {
       alert(err instanceof Error ? err.message : "Import failed.");
@@ -218,6 +222,13 @@ const App: React.FC = () => {
             active={activeView === 'dashboard'} 
             expanded={isSidebarOpen}
             onClick={() => setActiveView('dashboard')}
+          />
+          <NavItem 
+            icon={<MapIcon size={20} />} 
+            label="Workflow Map" 
+            active={activeView === 'workflow-map'} 
+            expanded={isSidebarOpen}
+            onClick={() => setActiveView('workflow-map')}
           />
           <NavItem 
             icon={<List size={20} />} 
@@ -365,6 +376,8 @@ const App: React.FC = () => {
           <div className="max-w-[1600px] mx-auto">
             {activeView === 'dashboard' ? (
               <Dashboard data={data} onViewAll={() => setActiveView('all')} />
+            ) : activeView === 'workflow-map' ? (
+              <WorkflowMap data={data} onEdit={handleEdit} />
             ) : (
               <div className="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden flex flex-col h-full">
                 <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-white shrink-0">

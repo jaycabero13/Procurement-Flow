@@ -34,7 +34,9 @@ const Dashboard: React.FC<DashboardProps> = ({ data, onViewAll }) => {
     return { total, totalAmount, missingDocs, pipeline };
   }, [data]);
 
-  const pipelineData = Object.entries(stats.pipeline).map(([name, value]) => ({ name, value }));
+  // Explicitly type pipelineData to ensure 'value' is treated as a number in the chart.
+  // This fixes the error: Operator '>' cannot be applied to types 'unknown' and 'number'.
+  const pipelineData: { name: string; value: number }[] = Object.entries(stats.pipeline).map(([name, value]) => ({ name, value }));
 
   return (
     <div className="space-y-8 pb-10">

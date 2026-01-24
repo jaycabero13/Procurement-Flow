@@ -1,6 +1,6 @@
 
 import * as XLSX from 'xlsx';
-import { Procurement, ProcurementStatus, ProcurementCategory } from '../types';
+import { Procurement, ProcurementStatus, ProcurementCategory, DocumentEntry, StationStatus } from '../types';
 import { CATEGORY_OPTIONS, DOC_LABELS } from '../constants';
 
 const COLUMNS = [
@@ -17,6 +17,9 @@ const COLUMNS = [
   'Date Completed',
   'Notes'
 ];
+
+const emptyDoc = (): DocumentEntry => ({ checked: false, file: null });
+const emptyStation = (): StationStatus => ({ status: 'pending' });
 
 export const excelService = {
   exportToExcel: (data: Procurement[]) => {
@@ -94,47 +97,53 @@ export const excelService = {
           const worksheet = workbook.Sheets[firstSheetName];
           const jsonData = XLSX.utils.sheet_to_json(worksheet) as any[];
 
-          const importedData: Procurement[] = jsonData.map((row, index) => ({
-            id: Math.random().toString(36).substr(2, 9),
-            recordId: row['Record ID'] || (Math.floor(Math.random() * 9000) + 1000),
-            supplierName: row['Supplier Name'] || 'Unknown Supplier',
-            category: (row['Category'] as ProcurementCategory) || CATEGORY_OPTIONS[0],
-            prNumber: row['PR Number'] || `PR-IMP-${index}`,
-            poNumber: row['PO Number'] || '',
-            amount: parseFloat(row['PR Amount (PHP)'] || row['Amount (PHP)'] || row['Amount']) || 0,
-            poAmount: parseFloat(row['PO Amount (PHP)'] || row['PO Amount']) || 0,
-            status: (row['Status'] as ProcurementStatus) || ProcurementStatus.Requested,
-            createdBy: row['Created By'] || 'System Import',
-            dateRequested: row['Date Requested'] || new Date().toISOString().split('T')[0],
-            dateCompleted: row['Date Completed'] || undefined,
-            lastUpdated: new Date().toISOString(),
-            notes: row['Notes'] || '',
-            documents: {
-              omnibus: { checked: false, file: null },
-              canvass: { checked: false, file: null },
-              obr: { checked: false, file: null },
-              soa: { checked: false, file: null },
-              ris: { checked: false, file: null },
-              wasteMaterialReport: { checked: false, file: null },
-              acceptanceReport: { checked: false, file: null },
-              inspectionReport: { checked: false, file: null }
-            },
-            workflow: {
-              cmo: { status: 'pending' },
-              it: { status: 'pending' },
-              budget: { status: 'pending' },
-              gso: { status: 'pending' },
-              bac: { status: 'pending' },
-              po: { status: 'pending' },
-              delivery: { status: 'pending' },
-              accounting: { status: 'pending' },
-              treasury: { status: 'pending' }
-            }
-          }));
+          const importedData: Procurement[] = jsonData.map((row, index) => {
+            const itemType = row['Type'] || (row['Category'] === 'Repair & Maintenance - ICT' || row['Category'] === 'Capital Outlay' ? 'Technical' : 'Non-Technical');
+            const isTechnical = itemType === 'Technical';
+
+            return {
+              id: Math.random().toString(36).substr(2, 9),
+              recordId: row['Record ID'] || (Math.floor(Math.random() * 9000) + 1000),
+              supplierName: row['Supplier Name'] || row['Item Name'] || 'Unknown Supplier',
+              category: (row['Category'] as ProcurementCategory) || CATEGORY_OPTIONS[0],
+              itemType: isTechnical ? 'Technical' : 'Non-Technical',
+              prNumber: row['PR Number'] || '',
+              poNumber: row['PO Number'] || '',
+              amount: parseFloat(row['PR Amount (PHP)'] || row['Amount (PHP)'] || row['Amount'] || row['Quantity']) || 0,
+              poAmount: parseFloat(row['PO Amount (PHP)'] || row['PO Amount']) || 0,
+              status: ProcurementStatus.CMO_Approval, // Start with CMO Approval
+              createdBy: row['Created By'] || row['Requested By'] || 'System Import',
+              dateRequested: row['Date Requested'] || row['Date'] || new Date().toISOString().split('T')[0],
+              dateCompleted: row['Date Completed'] || undefined,
+              lastUpdated: new Date().toISOString(),
+              notes: row['Notes'] || row['Remarks'] || '',
+              documents: {
+                omnibus: emptyDoc(),
+                canvass: emptyDoc(),
+                obr: emptyDoc(),
+                soa: emptyDoc(),
+                ris: emptyDoc(),
+                wasteMaterialReport: emptyDoc(),
+                acceptanceReport: emptyDoc(),
+                inspectionReport: emptyDoc()
+              },
+              workflow: {
+                cmo: { status: 'processing', receivedDate: new Date().toISOString().split('T')[0] },
+                it: { status: isTechnical ? 'pending' : 'na' },
+                budget: emptyStation(),
+                gso: emptyStation(),
+                bac: emptyStation(),
+                po: emptyStation(),
+                delivery: emptyStation(),
+                accounting: emptyStation(),
+                treasury: emptyStation()
+              }
+            };
+          });
 
           resolve(importedData);
         } catch (err) {
-          reject(new Error("Import process failed. Ensure column names match."));
+          reject(new Error("Import process failed. Ensure the Excel file contains required columns like Item Name, Category, or Type."));
         }
       };
       reader.onerror = () => reject(new Error("Unable to read file."));

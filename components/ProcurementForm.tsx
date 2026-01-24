@@ -239,14 +239,16 @@ const ProcurementForm: React.FC<ProcurementFormProps> = ({ item, currentUser, on
     y += 10;
 
     doc.setFontSize(9);
+    // Explicitly cast value to DocumentEntry to fix TypeScript errors regarding 'unknown' type.
     Object.entries(formData.documents!).forEach(([key, value]) => {
+      const entryValue = value as DocumentEntry;
       const label = DOC_LABELS[key as keyof DocumentChecklist];
-      doc.setFont('helvetica', value.checked ? 'bold' : 'normal');
-      doc.text(value.checked ? '[X]' : '[ ]', 15, y);
+      doc.setFont('helvetica', entryValue.checked ? 'bold' : 'normal');
+      doc.text(entryValue.checked ? '[X]' : '[ ]', 15, y);
       doc.text(label, 25, y);
-      if (value.file) {
+      if (entryValue.file) {
         doc.setTextColor(100, 116, 139);
-        doc.text(`(File: ${value.file.name})`, 105, y);
+        doc.text(`(File: ${entryValue.file.name})`, 105, y);
         doc.setTextColor(30, 41, 59);
       }
       y += 8;

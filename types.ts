@@ -66,6 +66,7 @@ export interface Procurement {
   recordId: number;
   supplierName: string;
   category: ProcurementCategory;
+  itemType?: 'Technical' | 'Non-Technical';
   prNumber: string;
   poNumber: string;
   amount: number;
